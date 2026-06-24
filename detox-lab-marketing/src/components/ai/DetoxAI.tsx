@@ -83,7 +83,7 @@ export default function DetoxAI() {
 
   useEffect(() => {
     if (open && messages.length === 0) {
-      triggerBotMessage("Hello! I am the N8N AI Agent, your 24/7 business assistant. Let's find the best solution for your project. What is your name?");
+      triggerBotMessage("Hello! I am the N8N AI Agent, your 24/7 business assistant. Let&apos;s find the best solution for your project. What is your name?");
       setStep("name");
     }
   }, [open, messages.length]);

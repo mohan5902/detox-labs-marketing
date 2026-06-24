@@ -96,7 +96,7 @@ export default function N8NAgent() {
                   Would you like to schedule a free call to outline your fields and triggers?
                 </div>
                 <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-ink-500">
-                  <span className="text-cyan-accent">User:</span> Yes, let&apos;s schedule...
+                  <span className="text-cyan-accent">User:</span> Yes, let&apos;s schedule ...
                 </div>
               </div>
 

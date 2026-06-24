@@ -72,7 +72,7 @@ export const whyChooseUs = [
   {
     title: "Mobile Responsive",
     icon: "Smartphone",
-    description: "Every build is tested across phones, tablets, and desktops to ensure it's responsive.",
+    description: "Every build is tested across phones, tablets, and desktops to ensure it&apos;s responsive.",
   },
   {
     title: "Modern UI/UX",

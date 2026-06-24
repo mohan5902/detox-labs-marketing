@@ -46,7 +46,7 @@ export default function ContactModal({
             </button>
 
             <span className="inline-flex items-center rounded-full border border-circuit-400/30 bg-circuit-400/5 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.2em] text-circuit-300">
-              {packageName ? "Get This Package" : "Let's Talk"}
+              {packageName ? "Get This Package" : "Let&apos;s Talk"}
             </span>
 
             <h3 className="mt-4 font-display text-2xl font-semibold text-ink-100">

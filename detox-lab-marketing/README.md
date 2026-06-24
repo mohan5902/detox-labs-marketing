@@ -75,7 +75,7 @@ This is intentionally dependency-free (no external AI API key required) so it wo
 
 ## Lead Storage
 
-Leads from the AI assistant, the booking form, and the contact form are all saved to the browser's `localStorage` under the key `detox_lab_leads`. This keeps the project fully self-contained without a backend. To wire it to a real backend or CRM, replace the implementation in `src/lib/leads.ts` with an API call.
+Leads from the AI assistant, the booking form, and the contact form are all saved to the browser&apos;s `localStorage` under the key `detox_lab_leads`. This keeps the project fully self-contained without a backend. To wire it to a real backend or CRM, replace the implementation in `src/lib/leads.ts` with an API call.
 
 ## Notes
 

@@ -50,8 +50,8 @@ export default function ContactPageClient() {
         <Container>
           <SectionHeading
             eyebrow="Contact Us"
-            title="We operate fully online — and we're easy to reach."
-            description="No office, no maps, no waiting rooms. Reach us directly and we'll respond personally."
+            title="We operate fully online — and we&apos;re easy to reach."
+            description="No office, no maps, no waiting rooms. Reach us directly and we&apos;ll respond personally."
           />
         </Container>
       </section>
