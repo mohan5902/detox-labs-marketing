@@ -199,7 +199,7 @@ export async function POST(request: Request) {
           "Thank you for contacting Detox Labs. Our team has received your request and will contact you shortly.",
         leadId: insertedData?.id || null,
       },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error: any) {
     console.error("[Submit Lead API] System exception:", error);
