@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS leads (
 -- Since our Next.js backend routes will interact with Supabase using the service_role key,
 -- they will automatically bypass RLS. This keeps the database secure from direct public access.
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+
+-- Enable public write access (insert-only) for anonymous and authenticated users.
+-- This acts as a robust backup policy in case the server uses/falls back to the anon key.
+DROP POLICY IF EXISTS "Allow public insert" ON leads;
+CREATE POLICY "Allow public insert" ON leads FOR INSERT TO anon, authenticated WITH CHECK (true);

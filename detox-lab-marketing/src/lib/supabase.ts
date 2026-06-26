@@ -5,7 +5,10 @@ import { createClient } from "@supabase/supabase-js";
 // without throwing errors at build time. During runtime, the actual environment
 // variables will be used correctly.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-url.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-service-role-key";
+const supabaseServiceKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "placeholder-service-role-key";
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
