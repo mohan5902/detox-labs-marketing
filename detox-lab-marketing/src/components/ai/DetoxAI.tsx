@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Mail,
   Instagram,
+  Loader2,
 } from "lucide-react";
 import { saveLead } from "@/lib/leads";
 import { recommendPackage } from "@/lib/recommend";
@@ -80,6 +81,7 @@ export default function DetoxAI() {
     requirements: "",
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -173,7 +175,8 @@ export default function DetoxAI() {
     }, 1200);
   }
 
-  function requestConsultation() {
+  async function requestConsultation() {
+    setIsSaving(true);
     const isIndia = data.country.includes("India");
     const recommended = recommendPackage(
       (data.goal || "Not sure yet") as ProjectGoal,
@@ -181,23 +184,34 @@ export default function DetoxAI() {
       isIndia
     );
 
-    saveLead({
-      source: "Detox AI",
-      name: data.name,
-      country: data.country,
-      businessName: data.business,
-      email: data.email,
-      phone: data.phone,
-      budget: data.budget,
-      goal: (data.goal || "Not sure yet") as ProjectGoal,
-      requirements: data.requirements,
-      recommendedPackage: recommended,
-    });
+    try {
+      await saveLead({
+        source: "Detox AI",
+        name: data.name,
+        country: data.country,
+        businessName: data.business,
+        email: data.email,
+        phone: data.phone,
+        budget: data.budget,
+        goal: (data.goal || "Not sure yet") as ProjectGoal,
+        requirements: data.requirements,
+        recommendedPackage: recommended,
+        // Default preferred contact
+        preferredContact: "email",
+      });
 
-    triggerBotMessage(
-      "Your consultation request and project specifications have been saved successfully! You can contact us directly on any of these channels to finalize your booking:"
-    );
-    setStep("done");
+      triggerBotMessage(
+        "Your consultation request and project specifications have been saved successfully! You can contact us directly on any of these channels to finalize your booking:"
+      );
+      setStep("done");
+    } catch (err: any) {
+      triggerBotMessage(
+        "I'm sorry, I encountered an error saving your request: " +
+          (err.message || "Please check your network and try again.")
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function resetChat() {
@@ -341,10 +355,15 @@ export default function DetoxAI() {
               {step === "summary" && !isTyping && (
                 <button
                   onClick={requestConsultation}
-                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-circuit-500 to-cyan-accent px-5 py-3 text-xs font-bold text-void shadow-glow hover:scale-[1.02] transition-transform"
+                  disabled={isSaving}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-circuit-500 to-cyan-accent px-5 py-3 text-xs font-bold text-void shadow-glow hover:scale-[1.02] transition-transform disabled:opacity-70"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Confirm Request & Suggest Package
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  {isSaving ? "Saving..." : "Confirm Request & Suggest Package"}
                 </button>
               )}
 
