@@ -6,7 +6,13 @@ const FALLBACK_SECRET = "detox_labs_secure_fallback_secret_key";
  * Generate a SHA-256 stateless session token for admin authentication.
  */
 export async function generateToken(username: string, passwordHash: string): Promise<string> {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || FALLBACK_SECRET;
+  const secret =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env["SUPABASE_ANON_KEY"] ||
+    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
+    FALLBACK_SECRET;
   const data = `${username}:${passwordHash}:${secret}`;
   
   const encoder = new TextEncoder();
