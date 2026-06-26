@@ -232,193 +232,251 @@ export function formatEmailHtml(lead: LeadNotificationData): string {
  * Send email notification using SMTP or Resend API.
  */
 export async function sendEmailNotification(lead: LeadNotificationData): Promise<boolean> {
-  const {
-    RESEND_API_KEY,
-    RESEND_FROM,
-    RESEND_TO,
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    SMTP_FROM,
-    SMTP_TO,
-  } = process.env;
+  try {
+    const {
+      RESEND_API_KEY,
+      RESEND_FROM,
+      RESEND_TO,
+      SMTP_HOST,
+      SMTP_PORT,
+      SMTP_USER,
+      SMTP_PASS,
+      SMTP_FROM,
+      SMTP_TO,
+    } = process.env;
 
-  const subject = `🚀 New Lead: ${lead.name} (${lead.serviceRequired})`;
-  const htmlContent = formatEmailHtml(lead);
-  const textContent = formatWhatsAppMessage(lead); // Use plain text message as text backup
+    console.log("[Notification System] --- Initiating Email Notification Send ---");
+    console.log("[Notification System] Environment Variables Status:");
+    console.log(`- RESEND_API_KEY: ${RESEND_API_KEY ? `PRESENT (Length: ${RESEND_API_KEY.length}, Prefix: ${RESEND_API_KEY.substring(0, 7)}...)` : "ABSENT"}`);
+    console.log(`- RESEND_FROM: ${RESEND_FROM || "ABSENT"}`);
+    console.log(`- RESEND_TO: ${RESEND_TO || "ABSENT"}`);
+    console.log(`- SMTP_HOST: ${SMTP_HOST || "ABSENT"}`);
+    console.log(`- SMTP_PORT: ${SMTP_PORT || "ABSENT"}`);
+    console.log(`- SMTP_USER: ${SMTP_USER ? `PRESENT (Length: ${SMTP_USER.length})` : "ABSENT"}`);
+    console.log(`- SMTP_PASS: ${SMTP_PASS ? "PRESENT" : "ABSENT"}`);
+    console.log(`- SMTP_FROM: ${SMTP_FROM || "ABSENT"}`);
+    console.log(`- SMTP_TO: ${SMTP_TO || "ABSENT"}`);
 
-  // 1. Try Resend if key is available
-  if (RESEND_API_KEY) {
-    try {
-      console.log("[Notification] Sending email via Resend API...");
-      const from = RESEND_FROM || "onboarding@resend.dev";
-      const to = RESEND_TO || "detoxmarketinglab@gmail.com";
+    const subject = `🚀 New Lead: ${lead.name} (${lead.serviceRequired})`;
+    const htmlContent = formatEmailHtml(lead);
+    const textContent = formatWhatsAppMessage(lead); // Use plain text message as text backup
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
+    // 1. Try Resend if key is available
+    if (RESEND_API_KEY) {
+      try {
+        console.log("[Notification System] Sending email via Resend API...");
+        const from = RESEND_FROM || "onboarding@resend.dev";
+        const to = RESEND_TO || "detoxmarketinglab@gmail.com";
+
+        console.log(`[Notification System] Resend Configuration: From='${from}', To='${to}', Subject='${subject}'`);
+
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from,
+            to,
+            subject,
+            html: htmlContent,
+            text: textContent,
+          }),
+        });
+
+        const resText = await res.text();
+        console.log(`[Notification System] Resend API Response Code: ${res.status}`);
+        console.log(`[Notification System] Resend API Response Content: ${resText}`);
+
+        if (res.ok) {
+          console.log("[Notification System] Email sent via Resend API successfully.");
+          return true;
+        } else {
+          console.error(`[Notification System] Resend API rejected request: ${res.status} - ${resText}`);
+        }
+      } catch (resendError) {
+        console.error("[Notification System] Resend API exception:", resendError);
+      }
+    } else {
+      console.log("[Notification System] Resend API Key is missing, skipping Resend path.");
+    }
+
+    // 2. Fall back to SMTP
+    if (SMTP_HOST) {
+      try {
+        console.log("[Notification System] Sending email via SMTP...");
+        const from = SMTP_FROM || "detoxmarketinglab@gmail.com";
+        const to = SMTP_TO || "detoxmarketinglab@gmail.com";
+
+        console.log(`[Notification System] SMTP Configuration: Host='${SMTP_HOST}', Port='${SMTP_PORT}', From='${from}', To='${to}'`);
+
+        const transporter = nodemailer.createTransport({
+          host: SMTP_HOST,
+          port: parseInt(SMTP_PORT || "587"),
+          secure: SMTP_PORT === "465",
+          auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS,
+          },
+        });
+
+        const mailResult = await transporter.sendMail({
           from,
           to,
           subject,
           html: htmlContent,
           text: textContent,
-        }),
-      });
+        });
 
-      if (res.ok) {
-        console.log("[Notification] Email sent via Resend API successfully.");
+        console.log("[Notification System] Email sent via SMTP successfully. MessageId:", mailResult.messageId);
         return true;
-      } else {
-        const errText = await res.text();
-        console.error(`[Notification] Resend API error: ${res.status} - ${errText}`);
+      } catch (smtpError) {
+        console.error("[Notification System] SMTP sending failed:", smtpError);
       }
-    } catch (error) {
-      console.error("[Notification] Resend API exception:", error);
+    } else {
+      console.log("[Notification System] SMTP Host is missing, skipping SMTP fallback path.");
     }
+
+    console.warn("[Notification System] No email configuration (Resend/SMTP) succeeded or was found.");
+    return false;
+  } catch (globalEmailError: any) {
+    console.error("[Notification System] Critical uncaught exception in sendEmailNotification:", globalEmailError);
+    return false;
   }
-
-  // 2. Fall back to SMTP
-  if (SMTP_HOST) {
-    try {
-      console.log("[Notification] Sending email via SMTP...");
-      const from = SMTP_FROM || "detoxmarketinglab@gmail.com";
-      const to = SMTP_TO || "detoxmarketinglab@gmail.com";
-
-      const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: parseInt(SMTP_PORT || "587"),
-        secure: SMTP_PORT === "465",
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS,
-        },
-      });
-
-      await transporter.sendMail({
-        from,
-        to,
-        subject,
-        html: htmlContent,
-        text: textContent,
-      });
-
-      console.log("[Notification] Email sent via SMTP successfully.");
-      return true;
-    } catch (error) {
-      console.error("[Notification] SMTP sending failed:", error);
-    }
-  }
-
-  console.warn("[Notification] No email configuration (Resend/SMTP) found or sending failed.");
-  return false;
 }
 
 /**
  * Send WhatsApp notification using Twilio or Meta Cloud API.
  */
 export async function sendWhatsAppNotification(lead: LeadNotificationData): Promise<boolean> {
-  const {
-    WHATSAPP_PROVIDER,
-    TWILIO_ACCOUNT_SID,
-    TWILIO_AUTH_TOKEN,
-    TWILIO_SENDER_NUMBER,
-    TWILIO_RECEIVER_NUMBER,
-    WHATSAPP_PHONE_NUMBER_ID,
-    WHATSAPP_ACCESS_TOKEN,
-    WHATSAPP_RECEIVER_NUMBER: META_RECEIVER_NUMBER,
-  } = process.env;
+  try {
+    const {
+      WHATSAPP_PROVIDER,
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      TWILIO_SENDER_NUMBER,
+      TWILIO_RECEIVER_NUMBER,
+      WHATSAPP_PHONE_NUMBER_ID,
+      WHATSAPP_ACCESS_TOKEN,
+      WHATSAPP_RECEIVER_NUMBER: META_RECEIVER_NUMBER,
+    } = process.env;
 
-  const messageText = formatWhatsAppMessage(lead);
+    console.log("[Notification System] --- Initiating WhatsApp Notification Send ---");
+    console.log("[Notification System] Environment Variables Status:");
+    console.log(`- WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER || "NOT DEFINED"}`);
+    console.log(`- TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID ? `PRESENT (Length: ${TWILIO_ACCOUNT_SID.length}, Prefix: ${TWILIO_ACCOUNT_SID.substring(0, 7)}...)` : "ABSENT"}`);
+    console.log(`- TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN ? `PRESENT (Length: ${TWILIO_AUTH_TOKEN.length})` : "ABSENT"}`);
+    console.log(`- TWILIO_SENDER_NUMBER: ${TWILIO_SENDER_NUMBER || "ABSENT"}`);
+    console.log(`- TWILIO_RECEIVER_NUMBER: ${TWILIO_RECEIVER_NUMBER || "ABSENT"}`);
+    console.log(`- WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID || "ABSENT"}`);
+    console.log(`- WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN ? `PRESENT (Length: ${WHATSAPP_ACCESS_TOKEN.length}, Prefix: ${WHATSAPP_ACCESS_TOKEN.substring(0, 10)}...)` : "ABSENT"}`);
+    console.log(`- META_RECEIVER_NUMBER: ${META_RECEIVER_NUMBER || "ABSENT"}`);
 
-  // 1. Twilio Integration
-  if (WHATSAPP_PROVIDER === "twilio" || (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && !WHATSAPP_PROVIDER)) {
-    try {
-      console.log("[Notification] Sending WhatsApp via Twilio...");
-      const accountSid = TWILIO_ACCOUNT_SID;
-      const authToken = TWILIO_AUTH_TOKEN;
-      const sender = TWILIO_SENDER_NUMBER || "+14155238886"; // Default Twilio Sandbox sender
-      const receiver = TWILIO_RECEIVER_NUMBER || "+919361257216";
+    const messageText = formatWhatsAppMessage(lead);
 
-      // Twilio numbers must be prefixed with "whatsapp:"
-      const formattedFrom = sender.startsWith("whatsapp:") ? sender : `whatsapp:${sender}`;
-      const formattedTo = receiver.startsWith("whatsapp:") ? receiver : `whatsapp:${receiver}`;
+    // 1. Twilio Integration
+    if (WHATSAPP_PROVIDER === "twilio" || (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && !WHATSAPP_PROVIDER)) {
+      try {
+        console.log("[Notification System] Sending WhatsApp via Twilio...");
+        const accountSid = TWILIO_ACCOUNT_SID;
+        const authToken = TWILIO_AUTH_TOKEN;
+        const sender = TWILIO_SENDER_NUMBER || "+14155238886"; // Default Twilio Sandbox sender
+        const receiver = TWILIO_RECEIVER_NUMBER || "+919361257216";
 
-      const params = new URLSearchParams();
-      params.append("From", formattedFrom);
-      params.append("To", formattedTo);
-      params.append("Body", messageText);
+        // Twilio numbers must be prefixed with "whatsapp:"
+        const formattedFrom = sender.startsWith("whatsapp:") ? sender : `whatsapp:${sender}`;
+        const formattedTo = receiver.startsWith("whatsapp:") ? receiver : `whatsapp:${receiver}`;
 
-      const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-      const response = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Basic ${auth}`,
-          },
-          body: params.toString(),
-        }
-      );
+        console.log(`[Notification System] Twilio config: From='${formattedFrom}', To='${formattedTo}'`);
 
-      if (response.ok) {
-        console.log("[Notification] Twilio WhatsApp sent successfully.");
-        return true;
-      } else {
-        const errText = await response.text();
-        console.error(`[Notification] Twilio WhatsApp failed: ${response.status} - ${errText}`);
-      }
-    } catch (error) {
-      console.error("[Notification] Twilio WhatsApp exception:", error);
-    }
-  }
+        const params = new URLSearchParams();
+        params.append("From", formattedFrom);
+        params.append("To", formattedTo);
+        params.append("Body", messageText);
 
-  // 2. Meta WhatsApp Cloud API
-  if (WHATSAPP_PROVIDER === "meta" || (WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_ACCESS_TOKEN && !WHATSAPP_PROVIDER)) {
-    try {
-      console.log("[Notification] Sending WhatsApp via Meta Cloud API...");
-      const phoneId = WHATSAPP_PHONE_NUMBER_ID;
-      const token = WHATSAPP_ACCESS_TOKEN;
-      const receiverRaw = META_RECEIVER_NUMBER || "919361257216";
-      const receiver = receiverRaw.replace(/\D/g, ""); // Strip non-digits
-
-      const response = await fetch(
-        `https://graph.facebook.com/v17.0/${phoneId}/messages`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: receiver,
-            type: "text",
-            text: {
-              body: messageText,
+        const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+        const response = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Basic ${auth}`,
             },
-          }),
+            body: params.toString(),
+          }
+        );
+
+        const resText = await response.text();
+        console.log(`[Notification System] Twilio API Response Code: ${response.status}`);
+        console.log(`[Notification System] Twilio API Response Content: ${resText}`);
+
+        if (response.ok) {
+          console.log("[Notification System] Twilio WhatsApp sent successfully.");
+          return true;
+        } else {
+          console.error(`[Notification System] Twilio WhatsApp rejected: ${response.status} - ${resText}`);
         }
-      );
-
-      if (response.ok) {
-        console.log("[Notification] Meta WhatsApp sent successfully.");
-        return true;
-      } else {
-        const errText = await response.text();
-        console.error(`[Notification] Meta WhatsApp failed: ${response.status} - ${errText}`);
+      } catch (twilioError) {
+        console.error("[Notification System] Twilio WhatsApp exception:", twilioError);
       }
-    } catch (error) {
-      console.error("[Notification] Meta WhatsApp exception:", error);
+    } else {
+      console.log("[Notification System] Twilio provider config or credentials missing, skipping Twilio path.");
     }
-  }
 
-  console.warn("[Notification] No WhatsApp configuration found or sending failed.");
-  return false;
+    // 2. Meta WhatsApp Cloud API
+    if (WHATSAPP_PROVIDER === "meta" || (WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_ACCESS_TOKEN && !WHATSAPP_PROVIDER)) {
+      try {
+        console.log("[Notification System] Sending WhatsApp via Meta Cloud API...");
+        const phoneId = WHATSAPP_PHONE_NUMBER_ID;
+        const token = WHATSAPP_ACCESS_TOKEN;
+        const receiverRaw = META_RECEIVER_NUMBER || "919361257216";
+        const receiver = receiverRaw.replace(/\D/g, ""); // Strip non-digits
+
+        console.log(`[Notification System] Meta config: Phone ID='${phoneId}', Receiver='${receiver}'`);
+
+        const response = await fetch(
+          `https://graph.facebook.com/v17.0/${phoneId}/messages`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: receiver,
+              type: "text",
+              text: {
+                body: messageText,
+              },
+            }),
+          }
+        );
+
+        const resText = await response.text();
+        console.log(`[Notification System] Meta API Response Code: ${response.status}`);
+        console.log(`[Notification System] Meta API Response Content: ${resText}`);
+
+        if (response.ok) {
+          console.log("[Notification System] Meta WhatsApp sent successfully.");
+          return true;
+        } else {
+          console.error(`[Notification System] Meta WhatsApp rejected: ${response.status} - ${resText}`);
+        }
+      } catch (metaError) {
+        console.error("[Notification System] Meta WhatsApp exception:", metaError);
+      }
+    } else {
+      console.log("[Notification System] Meta provider config or credentials missing, skipping Meta path.");
+    }
+
+    console.warn("[Notification System] No WhatsApp configuration (Twilio/Meta) succeeded or was found.");
+    return false;
+  } catch (globalWaError: any) {
+    console.error("[Notification System] Critical uncaught exception in sendWhatsAppNotification:", globalWaError);
+    return false;
+  }
 }
