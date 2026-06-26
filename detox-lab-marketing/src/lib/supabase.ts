@@ -4,23 +4,35 @@ let supabaseClient: SupabaseClient | null = null;
 
 /**
  * Dynamically resolves the Supabase client at runtime using active environment variables.
- * Throws a descriptive error if environment variables are missing.
+ * In Next.js, Webpack statically replaces "process.env.NEXT_PUBLIC_*" references with their
+ * build-time values (which are undefined in Vercel's build stage).
+ *
+ * To resolve this at runtime on Vercel:
+ * 1. We prioritize non-public server variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY).
+ * 2. We use bracket notation process.env["NEXT_PUBLIC_*"] which Webpack does NOT statically replace,
+ *    allowing it to be read dynamically at runtime from Vercel's live environment.
  */
 function getSupabaseClient(): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env["NEXT_PUBLIC_SUPABASE_URL"];
+
   const supabaseKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.SUPABASE_ANON_KEY ||
+    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
   if (!supabaseUrl) {
     throw new Error(
-      "Supabase URL is missing. Please configure the NEXT_PUBLIC_SUPABASE_URL environment variable."
+      `Supabase URL is missing. Please configure either the SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL environment variable. Available env keys: ${Object.keys(
+        process.env
+      ).join(", ")}`
     );
   }
 
   if (!supabaseKey) {
     throw new Error(
-      "Supabase Key is missing. Please configure either the SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable."
+      `Supabase Key is missing. Please configure either SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.`
     );
   }
 
@@ -37,7 +49,6 @@ function getSupabaseClient(): SupabaseClient {
 
 /**
  * Transparent proxy that delegates all calls to the dynamically resolved Supabase client.
- * This prevents Next.js from capturing compile-time fallbacks during static bundle analysis.
  */
 export const supabase = new Proxy({} as any, {
   get(target, prop, receiver) {
